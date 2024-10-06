@@ -1,0 +1,37 @@
+/* CSS variables, for using it : var(--varName) */
+:root {
+  --primaryColor: #0087e0;
+  --primaryColorAttenuated: #76bcea;
+  --secondaryColor: #76bcea;
+  --textColor: #1b1336;
+  --secondaryTextColor: #8c8c8c;
+  --borderColor: #dde1e7;
+  --secondaryBorderColor: #bdc3cb;
+  --backgroundColor: #fff;
+  --onBackground: #f5f6f7;
+  --redColor: #ee4836;
+  --greenColor: rgb(117, 180, 117);
+  --maleColor: #0087e0;
+  --femaleColor: #cb8ffd;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Roboto', '';
+  text-decoration: none;
+}
+
+body {
+  color: var(--textColor);
+}
+
+.content-shifted {
+  margin-left: 240px;
+  transition: margin-left 0.5s ease-out;
+}
+.content-not-shifted {
+  margin-left: 64px;
+  transition: margin-left 0.5s ease-out;
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "first_name": "Mathis",
+    "last_name": "Guillou",
+    "role": "admin",
+    "email": "Mathis.Guillou@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Paul",
+    "last_name": "Perrin",
+    "role": "admin",
+    "email": "Paul.Perrin@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Hugo",
+    "last_name": "Dumartin",
+    "role": "admin",
+    "email": "Hugo.Dumartin@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Louis",
+    "last_name": "Peculier",
+    "role": "admin",
+    "email": "Louis.Peculier@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Yohan",
+    "last_name": "Jaffre",
+    "role": "admin",
+    "email": "Yohan.Jaffre@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Etienne",
+    "last_name": "Cheilletz",
+    "role": "admin",
+    "email": "Etienne.Cheilletz@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Alexis",
+    "last_name": "Bajolle",
+    "role": "admin",
+    "email": "Alexis.Bajolle@reseau.eseo.fr",
+    "password": "123"
+  },
+  {
+    "first_name": "Cecile",
+    "last_name": "Tessier",
+    "role": "admin",
+    "email": "Cecile.Tessier@reseau.eseo.fr",
+    "password": "123"
+  }
+]

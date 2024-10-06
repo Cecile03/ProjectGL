@@ -1,0 +1,161 @@
+stages:
+  - build
+  - unit_test
+  - analysis
+  - deploy
+
+variables:
+  MAVEN_SETTINGS_PATH: ".m2/settings.xml"
+  MAVEN_OPTS: "-Dhttp.proxyHost=192.168.4.8 -Dhttp.proxyPort=3128 -Dhttps.proxyHost=192.168.4.8 -Dhttps.proxyPort=3128 -Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+  DEV_SERVER_ADRESS: 172.24.1.18
+  PROD_SERVER_ADRESS: 172.24.1.10
+
+cache:
+  paths:
+    - .m2/repository
+
+before_script:
+  - export https_proxy=http://192.168.4.8:3128/
+  - export http_proxy=http://192.168.4.8:3128/
+
+frontend_build:
+  stage: build
+  image: node:18.12.1-alpine
+  script:
+    - cd frontend
+    - npm install
+    - npm run build-serv
+  artifacts:
+    paths:
+      - backend/src/main/resources/static/
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+    - if: '$CI_COMMIT_REF_NAME == "dev"'
+
+# java_build job: build repository code, using maven 3.8.1 docker image, and package compiled code to a .war downloadable artifact
+backend_build:
+  stage: build
+  needs:
+    - frontend_build
+  image: maven:3.8.3-openjdk-17
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+  script:
+    - curl https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-parent/2.5.2/spring-boot-starter-parent-2.5.2.pom
+    - mvn $MAVEN_CLI_OPTS -f backend/pom.xml clean
+    - |
+      cat <<EOF > backend/src/main/resources/application.properties
+
+      spring.application.name=backend
+      server.port=8080
+      spring.datasource.url=jdbc:mariadb://localhost:3306/$DB_NAME
+      spring.datasource.username=$DB_USERNAME
+      spring.datasource.password=$DB_PASSWORD
+      spring.datasource.driver-class-name=org.mariadb.jdbc.Driver
+      spring.jpa.generate-ddl=false
+      spring.jpa.hibernate.ddl-auto=update
+      spring.h2.console.enabled=true
+      spring.mvc.pathmatch.matching-strategy=ant_path_matcher
+      springdoc.api-docs.path=/api-docs
+      jwt.secret=$JWT_SECRET
+      logging.level.org.springframework.security=DEBUG
+      default.password=default
+
+      EOF
+    - mvn $MAVEN_CLI_OPTS -f backend/pom.xml package -DskipTests=true
+  artifacts:
+    name: "Maven artifacts from $CI_PROJECT_NAME on $CI_COMMIT_REF_SLUG"
+    paths:
+      - backend/target/backend.war
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+    - if: '$CI_COMMIT_REF_NAME == "dev"'
+
+unit_test:
+  stage: unit_test
+  image: maven:3.8.3-openjdk-17
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+  script:
+    - cd backend
+    - mvn test jacoco:report
+  artifacts:
+    paths:
+      - backend/target/site/jacoco/
+      - backend/target/classes/
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+    - if: '$CI_COMMIT_REF_NAME == "dev"'
+
+quality-dev:
+  stage: analysis
+  image: maven:3.8.3-openjdk-17
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+  script:
+    - cd backend
+    # sonar <<PROJECT_NAME>> <<PROJECT_KEY>> and <<SONAR TOKEN>> should be modified to match the Team Dev branch project properties
+    # !!DEV!! PROJECT_NAME = Team2_2024_DevBranch | PROJECT_KEY = Team2_2024_DevBranch_Project | SONAR_TOKEN = 151f73381b3ed5fa2f60e66e066fc9b6810ad2f3
+    - mvn sonar:sonar -Dsonar.projectName=Team2_2024_DevBranch -Dsonar.projectKey=Team2_2024_DevBranch_Project -Dsonar.host.url=http://172.24.1.1:9000/sonar -Dsonar.login=151f73381b3ed5fa2f60e66e066fc9b6810ad2f3
+  only:
+    - dev
+
+quality-prod:
+  stage: analysis
+  image: maven:3.8.3-openjdk-17
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+  script:
+    - cd backend
+      # sonar <<PROJECT_NAME>> <<PROJECT_KEY>> and <<SONAR TOKEN>> should be modified to match the Team Master branch project properties5
+      # !!PROD!! PROJECT_NAME = Team2_2024_MasterBranch | PROJECT_KEY = Team2_2024_MasterBranch_Project | SONAR_TOKEN = a7fa0b7bece0ccf286645c7b04792b3c0bf196f6
+    - mvn sonar:sonar -Dsonar.projectName=Team2_2024_MasterBranch -Dsonar.projectKey=Team2_2024_MasterBranch_Project -Dsonar.host.url=http://172.24.1.1:9000/sonar -Dsonar.login=a7fa0b7bece0ccf286645c7b04792b3c0bf196f6
+  only:
+    - main
+
+deploy_to_dev:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - mkdir -p ~/.ssh/
+    - echo "$SSH_PRIVATE_KEY_DEV" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - apk add --no-cache openssh-client
+
+    - ssh -o StrictHostKeyChecking=no etudiant@$DEV_SERVER_ADRESS "if [ -f /srv/tomcat10/webapps/backend.war ]; then rm -f /srv/tomcat10/webapps/backend.war; fi"
+    - scp -o StrictHostKeyChecking=no backend/target/backend.war etudiant@$DEV_SERVER_ADRESS:/srv/tomcat10/webapps
+  dependencies:
+    - backend_build
+  only:
+    - dev
+
+deploy_to_prod:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - mkdir -p ~/.ssh/
+    - echo "$SSH_PRIVATE_KEY_PROD" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - apk add --no-cache openssh-client
+
+    - ssh -o StrictHostKeyChecking=no etudiant@$PROD_SERVER_ADRESS "if [ -f /srv/tomcat10/webapps/backend.war ]; then rm -f /srv/tomcat10/webapps/backend.war; fi"
+    - scp -o StrictHostKeyChecking=no backend/target/backend.war etudiant@$PROD_SERVER_ADRESS:/srv/tomcat10/webapps
+  dependencies:
+    - backend_build
+  only:
+    - main
