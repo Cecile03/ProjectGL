@@ -1,7 +1,7 @@
 # ProjectGL
 
 ## Description
-**ProjectGL** is a web application for project management developed for my school with a group of 8 people using the agile SCRUM methodology.
+**ProjectGL** is a web application for project management developed for my school with a group of 8 people using the agile SCRUM methodology and GitLab.
 
 ## Features
 - User authentication (login and registration).
